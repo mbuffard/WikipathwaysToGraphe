@@ -6,10 +6,16 @@ compteur_noeuds_none=0
 compteur_noeuds_ok=0
 compteur_pathway_vide=0
 compteur_pathway=0
+
+
+
+
+
+
 for pathway_file in listdir('GPML/'):
-    print (pathway_file)
+    
     pathway_name=pathway_file.split('.')[0]
-    f=minidom.parse('GPML/'+pathway_file)
+    f=minidom.parse('GPML/'+pathway_file)    
     node_list={}
     #avoid nodes that doesn't correspond to proteins, Type de l'instance DataNode
     NODES_IGNORED=['Undefined','DNA','RNA','Complex','Metabolite','Pathway','Disease','Phenotype','Alias','Event']
@@ -24,14 +30,11 @@ for pathway_file in listdir('GPML/'):
         if 'GroupRef' not in datanode.attributes and datanode.attributes['Type'].value not in NODES_IGNORED:
             name = converter.handler.import_symbol(datanode.attributes['TextLabel'].value)
             #map unrecognized node by id and database
-            if name is None:
-                
+            if name is None:  
                 for xref in datanode.getElementsByTagName('Xref'):
                     db_name=xref.attributes['Database'].value
-                    
                     if db_name in DATABASE_ok:
                         id=xref.attributes['ID'].value
-                        
                         clean_id=converter.handler.clean_uid(id)
                         
                         if clean_id is not None  :
@@ -91,7 +94,7 @@ for pathway_file in listdir('GPML/'):
                     interaction_dico[source]=[target]
     for key in interaction_dico:
         for value in interaction_dico[key]:
-            g.write(key+"\t"+value+"\n")
+            g.write(key+"\t"+value+"\t\t\n")
     g.close()
     if interaction_dico:
         compteur_pathway+=1
@@ -108,8 +111,39 @@ print('nombre de pathways transformés :')
 print (compteur_pathway)
 print('nombre de pathways non transformés :')
 print(compteur_pathway_vide)
+
+#Supress all the empty pathway files
 for file in listdir('pathways/'):
     if os.path.getsize('pathways/'+file) == 0:
         os.remove('pathways/'+file)
         node_file_name=file.split('.')[0]+"_nodes.txt"
         os.remove('pathways_nodes/'+node_file_name)
+
+
+
+# Write the member file used by enriched analysis
+member_file=open("pathways/members.txt","w")
+for pathway_file in listdir('pathways/'):
+    if pathway_file=="members.txt":continue
+    f=minidom.parse('GPML/'+pathway_file.split('.')[0]+".gpml")
+    
+    print(f.attributes)
+    pathway_name=pathway_file.split('.')[0]
+    member_file.write(pathway_name+"\t")
+    if not f.attributes:
+        member_file.write(pathway_name+"\t")
+    else:
+        if 'Pathway' not in f.attributes:
+            member_file.write("no description"+"\t")
+        else:
+            if "Name" in f.attributes['Pathway']:
+                name=f.attributes['Pathway'].attributes["Name"].value
+                member_file.write(name+"\t")
+    node_file=open("pathways_nodes/"+pathway_file.split(".")[0]+"_nodes.txt")
+
+    for line in node_file:
+        member_file.write(line.strip().split("\t")[0]+",")
+    member_file.write("\n")
+member_file.close()
+
+
